@@ -20,7 +20,7 @@ type Chemical struct {
 	Hazard string  `json:"hazard"`
 }
 
-// Helper: fetch from PubChem by name
+// fetchChemicalFromPubChem gets data from PubChem API
 func fetchChemicalFromPubChem(name string) (*Chemical, error) {
 	endpoint := "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/%s/JSON"
 	apiURL := fmt.Sprintf(endpoint, url.PathEscape(name))
@@ -31,7 +31,7 @@ func fetchChemicalFromPubChem(name string) (*Chemical, error) {
 	}
 	defer resp.Body.Close()
 
-	// Simplified extraction (for demo: proper error/checking needed)
+	// Simplified extraction
 	var result struct {
 		PC_Compounds []struct {
 			Props []struct {
@@ -51,23 +51,25 @@ func fetchChemicalFromPubChem(name string) (*Chemical, error) {
 	}
 
 	chem := &Chemical{Name: name}
-	for _, prop := range result.PC_Compounds[0].Props {
-		key := strings.ToLower(prop.URN.Label)
-		switch key {
-		case "molecular weight":
-			chem.MW = prop.Value.Fval
-		case "cas":
-			chem.CAS = prop.Value.Sval
-		case "boiling point":
-			chem.BP = prop.Value.Fval
+	if len(result.PC_Compounds) > 0 {
+		for _, prop := range result.PC_Compounds[0].Props {
+			key := strings.ToLower(prop.URN.Label)
+			switch key {
+			case "molecular weight":
+				chem.MW = prop.Value.Fval
+			case "cas":
+				chem.CAS = prop.Value.Sval
+			case "boiling point":
+				chem.BP = prop.Value.Fval
+			}
 		}
 	}
-	chem.Hazard = "Data from PubChem" // Expand with extra API calls/GHS if necessary
+	chem.Hazard = "Data from PubChem"
 
 	return chem, nil
 }
 
-// ChemicalHandler handles /api/chemicals?name=CHEMICAL
+// ChemicalHandler handles the GET /api/chemicals?name=<chemical>
 func ChemicalHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
@@ -75,10 +77,10 @@ func ChemicalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Try cache in SQL first
+	// 1. Try cache first in PostgreSQL
 	var chem Chemical
 	err := db.DB.QueryRow(
-		"SELECT name, cas, mw, bp, hazard FROM chemicals WHERE name=@p1",
+		"SELECT name, cas, mw, bp, hazard FROM chemicals WHERE name=$1",
 		name,
 	).Scan(&chem.Name, &chem.CAS, &chem.MW, &chem.BP, &chem.Hazard)
 
@@ -97,12 +99,12 @@ func ChemicalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Insert into DB for next time
+	// 3. Insert into DB
 	_, _ = db.DB.Exec(
-		"INSERT INTO chemicals (name, cas, mw, bp, hazard) VALUES (@p1, @p2, @p3, @p4, @p5)",
+		"INSERT INTO chemicals (name, cas, mw, bp, hazard) VALUES ($1, $2, $3, $4, $5)",
 		pubChem.Name, pubChem.CAS, pubChem.MW, pubChem.BP, pubChem.Hazard,
 	)
 
-	// 4. Return the fetched data
+	// 4. Return result to client
 	json.NewEncoder(w).Encode(pubChem)
 }
