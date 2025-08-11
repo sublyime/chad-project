@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	_ "github.com/denisenkom/go-mssqldb" // Register SQL Server driver
 )
 
 var DB *sql.DB
 
 // ConnectDB initializes the connection to the SQL Express database
 func ConnectDB() {
-	// Defaults are set to requested values
-	server := getEnv("DB_SERVER", "localhost\\SQLEXPRESS")
+	// Defaults set as requested — can be overridden via env vars
+	server := getEnv("DB_SERVER", `SUBMAIN\SQLEXPRESS`)
 	port := getEnv("DB_PORT", "1433")
 	user := getEnv("DB_USER", "chad")
 	password := getEnv("DB_PASSWORD", "chad")
@@ -37,6 +39,7 @@ func ConnectDB() {
 	log.Println("✅ Connected to SQL Express database:", database)
 }
 
+// getEnv returns an environment variable or a default value if not set
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
