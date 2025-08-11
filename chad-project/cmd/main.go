@@ -5,28 +5,20 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sublyime/chad-project/chad-project/pkg/db"
-	// replace 'your_module_path' with your actual module path
+	"github.com/sublyime/chad-project/pkg/api"
+	"github.com/sublyime/chad-project/pkg/db"
 )
 
 func main() {
-	// Initialize the database connection
+	// Connect DB
 	db.ConnectDB()
 
-	// Create a new router
 	r := chi.NewRouter()
 
-	// Define a simple root endpoint for testing
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Welcome to CHAD! Database connected successfully."))
-	})
+	// API routes
+	r.Get("/api/health", api.HealthHandler)
+	r.Get("/api/chemicals", api.ChemicalHandler)
 
-	// TODO: Add routes for API, weather, chemical queries, reports, etc.
-
-	// Start the HTTP server on port 8080
-	log.Println("Starting server on :8080")
-	err := http.ListenAndServe(":8080", r)
-	if err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+	log.Println("✅ CHAD backend running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
