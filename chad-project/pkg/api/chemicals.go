@@ -8,7 +8,7 @@ import (
     "net/url"
     "strings"
 
-    "github.com/yourusername/chad-project/pkg/db"
+    "github.com/sublyime/chad-project/pkg/db"
 )
 
 // Chemical info structure
